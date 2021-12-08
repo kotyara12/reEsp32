@@ -1,6 +1,7 @@
 #include <time.h>
 #include <ctype.h>
 #include <esp32/rom/rtc.h>
+#include "esp_system.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "rLog.h"
@@ -69,18 +70,32 @@ void msTaskDelayUntil(TickType_t * const prevTime, TickType_t value)
 // ----------------------------------- Restarting the device with extended functionality ---------------------------------
 // -----------------------------------------------------------------------------------------------------------------------
 
-reset_callback_t _reset_callback = nullptr;
+shutdown_handler_t _shutdown_handler_app = nullptr;
 
-void espRestartSetCallback(reset_callback_t reset_callback)
+static void espDefaultShutdownHandler()
 {
-  if (!_reset_callback) {
-    _reset_callback = reset_callback;
-  }
+  if (_shutdown_handler_app) {
+    _shutdown_handler_app();
+  };
+}
+
+void espRegisterShutdownHandlers()
+{
+  esp_err_t err = esp_register_shutdown_handler(espDefaultShutdownHandler);
+  if (err != ESP_OK) {
+    rlog_e("ESPSYS", "Failed to register shutdown handler!");
+  };
+}
+
+void espRegisterShutdownHandlerApp(shutdown_handler_t handler_app)
+{
+  if (!_shutdown_handler_app) {
+    _shutdown_handler_app = handler_app;
+  };
 }
 
 void espRestart(re_reset_reason_t reason)
 {
-  if (_reset_callback) { _reset_callback(reason); };
   nvsWrite("system", "reset_reason", OPT_TYPE_U8, &reason);
   esp_restart();
 }

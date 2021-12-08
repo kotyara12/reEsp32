@@ -26,8 +26,6 @@ typedef enum {
   RR_HEAP_ALLOCATION_ERROR = 3
 } re_reset_reason_t;
 
-typedef void (*reset_callback_t) (re_reset_reason_t reason);
-
 #ifndef ARDUINO
 unsigned long IRAM_ATTR millis();
 #endif
@@ -38,7 +36,8 @@ bool checkTimeout(const unsigned long prevTimestamp, const unsigned long delayVa
 void msTaskDelay(TickType_t value);
 void msTaskDelayUntil(TickType_t * const prevTime, TickType_t value);
 
-void espRestartSetCallback(reset_callback_t reset_callback);
+void espRegisterShutdownHandlers();
+void espRegisterShutdownHandlerApp(shutdown_handler_t handler_app);
 void espRestart(re_reset_reason_t reason);
 const char* getResetReason();
 const char* getResetReasonRtc(int cpu_no);
