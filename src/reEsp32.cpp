@@ -67,6 +67,41 @@ void msTaskDelayUntil(TickType_t * const prevTime, TickType_t value)
 }
 
 // -----------------------------------------------------------------------------------------------------------------------
+// -------------------------------------------------- Memory allocation --------------------------------------------------
+// -----------------------------------------------------------------------------------------------------------------------
+
+#define HEAP_ALLOC_ATTEMPTS_MAX 10
+#define HEAP_ALLOC_ATTEMPTS_INTERVAL 1000
+
+void* esp_malloc(size_t size)
+{
+  uint8_t att_count = 0;
+  void* addr = nullptr;
+  do {
+    att_count++;
+    addr = malloc(size);
+    if (!(addr)) {
+      vTaskDelay(HEAP_ALLOC_ATTEMPTS_INTERVAL / portTICK_PERIOD_MS);
+    };
+  } while (!(addr) && (att_count < HEAP_ALLOC_ATTEMPTS_MAX));
+  return addr;
+}
+
+void* esp_calloc(size_t count, size_t size)
+{
+  uint8_t att_count = 0;
+  void* addr = nullptr;
+  do {
+    att_count++;
+    addr = calloc(count, size);
+    if (!(addr)) {
+      vTaskDelay(HEAP_ALLOC_ATTEMPTS_INTERVAL / portTICK_PERIOD_MS);
+    };
+  } while (!(addr) && (att_count < HEAP_ALLOC_ATTEMPTS_MAX));
+  return addr;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------
 // ----------------------------------- Restarting the device with extended functionality ---------------------------------
 // -----------------------------------------------------------------------------------------------------------------------
 
@@ -123,6 +158,7 @@ const char* getResetReason()
         case RR_OTA:        return "OTA UPDATE";
         case RR_COMMAND_RESET: return "COMMAND RESET";
         case RR_HEAP_ALLOCATION_ERROR: return "HEAP ALLOCATION ERROR";
+        case RR_WIFI_TIMEOUT: return "WIFI CONNECT TIMEOUT";
         default:            return "SOFTWARE RESET";
       };
     case ESP_RST_PANIC:     return "EXCEPTION / PANIC";

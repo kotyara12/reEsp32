@@ -23,7 +23,8 @@ typedef enum {
   RR_UNKNOWN = 0,
   RR_OTA = 1,
   RR_COMMAND_RESET = 2,
-  RR_HEAP_ALLOCATION_ERROR = 3
+  RR_HEAP_ALLOCATION_ERROR = 3,
+  RR_WIFI_TIMEOUT = 4
 } re_reset_reason_t;
 
 #ifndef ARDUINO
@@ -35,6 +36,9 @@ bool timerTimeout(esp_timer_t *timer);
 bool checkTimeout(const unsigned long prevTimestamp, const unsigned long delayValue);
 void msTaskDelay(TickType_t value);
 void msTaskDelayUntil(TickType_t * const prevTime, TickType_t value);
+
+void* esp_malloc(size_t size);
+void* esp_calloc(size_t count, size_t size);
 
 void espRegisterShutdownHandlers();
 void espRegisterShutdownHandlerApp(shutdown_handler_t handler_app);
