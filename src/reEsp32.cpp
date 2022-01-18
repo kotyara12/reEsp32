@@ -75,15 +75,15 @@ void msTaskDelayUntil(TickType_t * const prevTime, TickType_t value)
 
 void* esp_malloc(size_t size)
 {
-  uint8_t att_count = 0;
+  uint8_t att_count = 1;
   void* addr = nullptr;
   do {
-    att_count++;
     addr = malloc(size);
-    if (!(addr)) {
+    if (addr == nullptr) {
+      att_count++;
       vTaskDelay(HEAP_ALLOC_ATTEMPTS_INTERVAL / portTICK_PERIOD_MS);
     };
-  } while (!(addr) && (att_count < HEAP_ALLOC_ATTEMPTS_MAX));
+  } while ((addr == nullptr) && (att_count < HEAP_ALLOC_ATTEMPTS_MAX));
   return addr;
 }
 
@@ -92,12 +92,12 @@ void* esp_calloc(size_t count, size_t size)
   uint8_t att_count = 0;
   void* addr = nullptr;
   do {
-    att_count++;
     addr = calloc(count, size);
-    if (!(addr)) {
+    if (addr == nullptr) {
+      att_count++;
       vTaskDelay(HEAP_ALLOC_ATTEMPTS_INTERVAL / portTICK_PERIOD_MS);
     };
-  } while (!(addr) && (att_count < HEAP_ALLOC_ATTEMPTS_MAX));
+  } while ((addr == nullptr) && (att_count < HEAP_ALLOC_ATTEMPTS_MAX));
   return addr;
 }
 
