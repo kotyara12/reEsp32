@@ -156,6 +156,7 @@ const char* getResetReason()
     case ESP_RST_SW:        
       switch (espGetResetReason()) {
         case RR_OTA:        return "OTA UPDATE";
+        case RR_OTA_TIMEOUT: return "OTA UPDATE TIMEOUT";
         case RR_COMMAND_RESET: return "COMMAND RESET";
         case RR_HEAP_ALLOCATION_ERROR: return "HEAP ALLOCATION ERROR";
         case RR_WIFI_TIMEOUT: return "WIFI CONNECT TIMEOUT";

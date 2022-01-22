@@ -22,9 +22,10 @@ extern "C" {
 typedef enum {
   RR_UNKNOWN = 0,
   RR_OTA = 1,
-  RR_COMMAND_RESET = 2,
-  RR_HEAP_ALLOCATION_ERROR = 3,
-  RR_WIFI_TIMEOUT = 4
+  RR_OTA_TIMEOUT = 2,
+  RR_COMMAND_RESET = 3,
+  RR_HEAP_ALLOCATION_ERROR = 4,
+  RR_WIFI_TIMEOUT = 5
 } re_reset_reason_t;
 
 #ifndef ARDUINO
