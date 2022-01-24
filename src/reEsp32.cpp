@@ -17,6 +17,8 @@
 #include "esp_attr.h"
 #include "esp_timer.h"
 
+static const char* logTAG = "SYSTEM";
+
 unsigned long IRAM_ATTR millis() 
 {
   return (unsigned long) (esp_timer_get_time() / 1000ULL);
@@ -71,6 +73,8 @@ void msTaskDelayUntil(TickType_t * const prevTime, TickType_t value)
 // -------------------------------------------------- Memory allocation --------------------------------------------------
 // -----------------------------------------------------------------------------------------------------------------------
 
+#if defined(CONFIG_HEAP_ALLOC_FAILED_RETRY) && CONFIG_HEAP_ALLOC_FAILED_RETRY
+
 #define HEAP_ALLOC_ATTEMPTS_MAX 10
 #define HEAP_ALLOC_ATTEMPTS_INTERVAL 1000
 
@@ -102,6 +106,13 @@ void* esp_calloc(size_t count, size_t size)
   return addr;
 }
 
+#else 
+
+#define esp_malloc malloc
+#define esp_calloc calloc
+
+#endif // CONFIG_HEAP_ALLOC_FAILED_RETRY
+
 // -----------------------------------------------------------------------------------------------------------------------
 // ----------------------------------- Restarting the device with extended functionality ---------------------------------
 // -----------------------------------------------------------------------------------------------------------------------
@@ -119,7 +130,7 @@ void espRegisterShutdownHandlers()
 {
   esp_err_t err = esp_register_shutdown_handler(espDefaultShutdownHandler);
   if (err != ESP_OK) {
-    rlog_e("ESPSYS", "Failed to register shutdown handler!");
+    rlog_e(logTAG, "Failed to register shutdown handler!");
   };
 }
 
@@ -137,7 +148,7 @@ static void espRestartTimer(void* arg)
 
 void espRestart(re_reset_reason_t reason, uint32_t delay_ms)
 {
-  rlog_i("SYSTEM", "******************* Restart system! *******************");
+  rlog_w(logTAG, "******************* Restart system! *******************");
   nvsWrite("system", "reset_reason", OPT_TYPE_U8, &reason);
   if (delay_ms > 0) {
     esp_timer_create_args_t tmrCfg;
