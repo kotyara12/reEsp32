@@ -108,8 +108,15 @@ void* esp_calloc(size_t count, size_t size)
 
 #else 
 
-#define esp_malloc malloc
-#define esp_calloc calloc
+void* esp_malloc(size_t size)
+{
+  return malloc(size);
+}
+
+void* esp_calloc(size_t count, size_t size)
+{
+  return calloc(count, size);
+}
 
 #endif // CONFIG_HEAP_ALLOC_FAILED_RETRY
 
