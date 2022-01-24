@@ -2,6 +2,7 @@
 #include <ctype.h>
 #include <esp32/rom/rtc.h>
 #include "esp_system.h"
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "rLog.h"
@@ -127,11 +128,27 @@ void espRegisterShutdownHandlerApp(shutdown_handler_t handler_app)
   if (!_shutdown_handler_app) {
     _shutdown_handler_app = handler_app;
   };
+};
+
+static void espRestartTimer(void* arg)
+{
+  esp_restart();
 }
 
-void espRestart(re_reset_reason_t reason)
+void espRestart(re_reset_reason_t reason, uint32_t delay_ms)
 {
+  rlog_i("SYSTEM", "******************* Restart system! *******************");
   nvsWrite("system", "reset_reason", OPT_TYPE_U8, &reason);
+  if (delay_ms > 0) {
+    esp_timer_create_args_t tmrCfg;
+    tmrCfg.callback = espRestartTimer;
+    tmrCfg.name = "timer_restart";
+    esp_timer_handle_t tmrHandle;
+    if ((esp_timer_create(&tmrCfg, &tmrHandle) == ESP_OK) 
+     && (esp_timer_start_once(tmrHandle, delay_ms * 1000) == ESP_OK)) {
+      return;
+    };
+  };
   esp_restart();
 }
 
@@ -158,7 +175,7 @@ const char* getResetReason()
         case RR_OTA:        return "OTA UPDATE";
         case RR_OTA_TIMEOUT: return "OTA UPDATE TIMEOUT";
         case RR_COMMAND_RESET: return "COMMAND RESET";
-        case RR_HEAP_ALLOCATION_ERROR: return "HEAP ALLOCATION ERROR";
+        case RR_HEAP_ALLOCATION_FAILED: return "HEAP ALLOCATION FAILED";
         case RR_WIFI_TIMEOUT: return "WIFI CONNECT TIMEOUT";
         default:            return "SOFTWARE RESET";
       };

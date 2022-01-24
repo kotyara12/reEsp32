@@ -24,7 +24,7 @@ typedef enum {
   RR_OTA = 1,
   RR_OTA_TIMEOUT = 2,
   RR_COMMAND_RESET = 3,
-  RR_HEAP_ALLOCATION_ERROR = 4,
+  RR_HEAP_ALLOCATION_FAILED = 4,
   RR_WIFI_TIMEOUT = 5
 } re_reset_reason_t;
 
@@ -43,7 +43,7 @@ void* esp_calloc(size_t count, size_t size);
 
 void espRegisterShutdownHandlers();
 void espRegisterShutdownHandlerApp(shutdown_handler_t handler_app);
-void espRestart(re_reset_reason_t reason);
+void espRestart(re_reset_reason_t reason, uint32_t delay_ms);
 const char* getResetReason();
 const char* getResetReasonRtc(int cpu_no);
 
