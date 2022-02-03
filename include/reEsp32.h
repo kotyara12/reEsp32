@@ -10,6 +10,20 @@
 #define __RE_ESP32_H__
 
 #include "freertos/FreeRTOS.h"
+#include "rLog.h"
+
+// Usage: RE_MEM_CHECK(TAG, item, return NULL);
+#define RE_MEM_CHECK(TAG, a, action) if (!(a)) {                               \
+  rlog_e(TAG, "%s in \"%s\"::%d", "Memory exhausted", __FUNCTION__, __LINE__); \
+  action;                                                                      \
+};
+
+// Usage: RE_MEM_CHECK(TAG, esp_create_timer(...), return false);
+#define RE_OK_CHECK(TAG, a, action) esp_err_t err = (a);                                                 \
+if (err != ESP_OK) {                                                                                     \
+  rlog_e(TAG, "\"%s\"::%d failed with code %d (%s)", __FUNCTION__, __LINE__, err, esp_err_to_name(err)); \
+  action;                                                                                                \
+};
 
 typedef struct {
   uint32_t deadline;
