@@ -18,7 +18,7 @@
   action;                                                                      \
 };
 
-// Usage: RE_MEM_CHECK(TAG, esp_create_timer(...), return false);
+// Usage: RE_OK_CHECK(TAG, esp_create_timer(...), return false);
 #define RE_OK_CHECK(TAG, a, action) esp_err_t err = (a);                                                 \
 if (err != ESP_OK) {                                                                                     \
   rlog_e(TAG, "\"%s\"::%d failed with code %d (%s)", __FUNCTION__, __LINE__, err, esp_err_to_name(err)); \
