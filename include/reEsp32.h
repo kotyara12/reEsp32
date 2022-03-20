@@ -47,6 +47,20 @@ typedef enum {
   RR_WIFI_TIMEOUT = 5
 } re_reset_reason_t;
 
+#if CONFIG_RESTART_DEBUG_INFO
+
+typedef struct {
+  size_t heap_total;
+  size_t heap_free;
+  size_t heap_free_min;
+  time_t heap_min_time;
+  #if CONFIG_RESTART_DEBUG_STACK_DEPTH > 0
+  uint32_t backtrace[CONFIG_RESTART_DEBUG_STACK_DEPTH];
+  #endif // CONFIG_RESTART_DEBUG_STACK_DEPTH
+} re_restart_debug_t;
+
+#endif // CONFIG_RESTART_DEBUG_INFO
+
 #ifndef ARDUINO
 unsigned long IRAM_ATTR millis();
 #endif
@@ -63,8 +77,18 @@ void* esp_calloc(size_t count, size_t size);
 void espRegisterShutdownHandlers();
 void espRegisterShutdownHandlerApp(shutdown_handler_t handler_app);
 void espRestart(re_reset_reason_t reason, uint32_t delay_ms);
+void espSetResetReason(re_reset_reason_t reason);
 const char* getResetReason();
 const char* getResetReasonRtc(int cpu_no);
+
+#if CONFIG_RESTART_DEBUG_INFO
+void debugHeapUpdate();
+void debugUpdate();
+re_restart_debug_t debugGet();
+#endif // CONFIG_RESTART_DEBUG_INFO
+
+void __real_esp_panic_handler(void*);
+void __wrap_esp_panic_handler(void* info);
 
 #ifdef __cplusplus
 }
