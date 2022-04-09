@@ -74,8 +74,8 @@ void msTaskDelayUntil(TickType_t * const prevTime, TickType_t value);
 void* esp_malloc(size_t size);
 void* esp_calloc(size_t count, size_t size);
 
-void espRegisterShutdownHandlers();
-void espRegisterShutdownHandlerApp(shutdown_handler_t handler_app);
+bool espRegisterShutdownHandler(shutdown_handler_t handler);
+bool espRegisterSystemShutdownHandler();
 void espRestart(re_reset_reason_t reason, uint32_t delay_ms);
 void espSetResetReason(re_reset_reason_t reason);
 const char* getResetReason();

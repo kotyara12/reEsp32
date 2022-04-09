@@ -139,30 +139,27 @@ __NOINIT_ATTR static re_reset_reason_t _reset_reason = RR_UNKNOWN;
 
 shutdown_handler_t _shutdown_handler_app = nullptr;
 
-static void espDefaultShutdownHandler()
+static void espSystemShutdownHandler()
 {
   #if CONFIG_RESTART_DEBUG_INFO
   debugUpdate();
   #endif // CONFIG_RESTART_DEBUG_INFO
-  if (_shutdown_handler_app) {
-    _shutdown_handler_app();
-  };
 }
 
-void espRegisterShutdownHandlers()
+bool espRegisterShutdownHandler(shutdown_handler_t handler)
 {
-  esp_err_t err = esp_register_shutdown_handler(espDefaultShutdownHandler);
-  if (err != ESP_OK) {
-    rlog_e(logTAG, "Failed to register shutdown handler!");
+  esp_err_t err = esp_register_shutdown_handler(handler);
+  if (err == ESP_ERR_NO_MEM) {
+    rlog_e(logTAG, "Failed to register shutdown handler: no free slots!");
+    return false;
   };
+  return true;
 }
 
-void espRegisterShutdownHandlerApp(shutdown_handler_t handler_app)
+bool espRegisterSystemShutdownHandler() 
 {
-  if (!_shutdown_handler_app) {
-    _shutdown_handler_app = handler_app;
-  };
-};
+  return espRegisterShutdownHandler(espSystemShutdownHandler);
+}
 
 static void espRestartTimer(void* arg)
 {
