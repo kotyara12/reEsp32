@@ -3,7 +3,6 @@
 #include <string.h>
 #include <esp32/rom/rtc.h>
 #include "esp_system.h"
-#include "esp_timer.h"
 #include "esp_heap_caps.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -11,6 +10,7 @@
 #include "reEsp32.h"
 #include "reNvs.h"
 
+#include "esp_log.h"
 #if CONFIG_RESTART_DEBUG_INFO && (CONFIG_RESTART_DEBUG_STACK_DEPTH > 0)
 #include "esp_types.h"
 #include "esp_attr.h"
@@ -84,6 +84,20 @@ void msTaskDelayUntil(TickType_t * const prevTime, TickType_t value)
 // -------------------------------------------------- Memory allocation --------------------------------------------------
 // -----------------------------------------------------------------------------------------------------------------------
 
+float esp_heap_free_percent()
+{
+  return 100.0 * ((float)heap_caps_get_free_size(MALLOC_CAP_DEFAULT)/(float)heap_caps_get_total_size(MALLOC_CAP_DEFAULT));
+}
+
+float esp_heap_free_check()
+{
+  #if defined(CONFIG_HEAP_MINIMAL_SIZE_PERCENT) && (CONFIG_HEAP_MINIMAL_SIZE_PERCENT > 0) && (CONFIG_HEAP_MINIMAL_SIZE_PERCENT < 100)
+    return esp_heap_free_percent() > CONFIG_HEAP_MINIMAL_SIZE_PERCENT;
+  #else 
+    return true;
+  #endif // CONFIG_HEAP_MINIMAL_SIZE_PERCENT
+}
+
 #if defined(CONFIG_HEAP_ALLOC_FAILED_RETRY) && CONFIG_HEAP_ALLOC_FAILED_RETRY
 
 #define HEAP_ALLOC_ATTEMPTS_MAX 10
@@ -132,10 +146,123 @@ void* esp_calloc(size_t count, size_t size)
 #endif // CONFIG_HEAP_ALLOC_FAILED_RETRY
 
 // -----------------------------------------------------------------------------------------------------------------------
-// ----------------------------------- Restarting the device with extended functionality ---------------------------------
+// ------------------------------------ Device restart timer when something went wrong -----------------------------------
 // -----------------------------------------------------------------------------------------------------------------------
 
-__NOINIT_ATTR static re_reset_reason_t _reset_reason = RR_UNKNOWN;
+static void espRestartTimerEnd(void* arg)
+{
+  if (arg == nullptr) {
+    espRestart(RR_UNKNOWN);
+  } else {
+    re_restart_timer_t* restart_timer = (re_restart_timer_t*)arg;
+    rlog_w(logTAG, "Device restart timer [ reason # %d ] timeout...", restart_timer->reason);
+    espRestart(restart_timer->reason);
+  };
+}
+
+bool espRestartTimerInit(re_restart_timer_t* restart_timer, re_reset_reason_t reason)
+{
+  if (restart_timer == nullptr) {
+    rlog_e(logTAG, "Failed to initialize device restart timer: argument is NULL");
+    return false;
+  };
+  
+  if (restart_timer->timer == nullptr) {
+    esp_timer_create_args_t tmrCfg;
+    memset(&tmrCfg, 0, sizeof(tmrCfg));
+    tmrCfg.callback = espRestartTimerEnd;
+    tmrCfg.name = "wdog_restart";
+    tmrCfg.arg = restart_timer;
+    esp_err_t err = esp_timer_create(&tmrCfg, &restart_timer->timer);
+    if (err != ESP_OK) {
+      rlog_e(logTAG, "Failed to create device restart timer: %d %s", err, esp_err_to_name(err));
+      return false;
+    };
+  };
+  restart_timer->reason = reason;
+  return true;
+}
+
+void espRestartTimerStart(re_restart_timer_t* restart_timer, re_reset_reason_t reason, uint64_t delay_ms, bool override)
+{
+  if (restart_timer == nullptr) {
+    rlog_e(logTAG, "Failed to start device restart timer: argument is NULL");
+  };
+
+  if (delay_ms > 0) {
+    restart_timer->reason = reason;
+
+    if ((restart_timer->timer != nullptr) && esp_timer_is_active(restart_timer->timer)) {
+      if (override) {
+        espRestartTimerBreak(restart_timer);
+      } else {
+        return;
+      };
+    };
+      
+    if ((restart_timer->timer != nullptr) || espRestartTimerInit(restart_timer, reason)) {
+      esp_err_t err = esp_timer_start_once(restart_timer->timer, delay_ms * 1000);
+      if (err == ESP_OK) {
+        rlog_w(logTAG, "Device restart timer started for %d s due to reason # %d", (uint32_t)(delay_ms / 1000), reason);
+        return;
+      } else {
+        rlog_e(logTAG, "Failed to start device restart timer: %d %s", err, esp_err_to_name(err));
+      };
+    };
+  } else {
+    espRestart(reason);
+  };
+}
+
+void espRestartTimerBreak(re_restart_timer_t* restart_timer)
+{
+  if (restart_timer == nullptr) {
+    rlog_e(logTAG, "Failed to stop device restart timer: argument is NULL");
+  };
+
+  if (restart_timer->timer != nullptr) {
+    if (esp_timer_is_active(restart_timer->timer)) {
+      esp_err_t err = esp_timer_stop(restart_timer->timer);
+      if (err == ESP_OK) {
+        rlog_i(logTAG, "Device restart timer for reason # %d is stopped", restart_timer->reason);
+      } else {
+        rlog_e(logTAG, "Failed to stop device restart timer: %d %s", err, esp_err_to_name(err));
+      };
+    };
+  };
+}
+
+void espRestartTimerFree(re_restart_timer_t* restart_timer)
+{
+  if (restart_timer == nullptr) {
+    rlog_e(logTAG, "Failed to free device restart timer: argument is NULL");
+  };
+
+  if (restart_timer->timer != nullptr) {
+    esp_err_t err = ESP_OK;
+    if (esp_timer_is_active(restart_timer->timer)) {
+      err = esp_timer_stop(restart_timer->timer);
+      if (err == ESP_OK) {
+        rlog_i(logTAG, "Device restart timer for reason # %d is stopped", restart_timer->reason);
+      } else {
+        rlog_e(logTAG, "Failed to stop device restart timer: %d %s", err, esp_err_to_name(err));
+      };
+    };
+    if (err == ESP_OK) {
+      err = esp_timer_delete(restart_timer->timer);
+      if (err == ESP_OK) {
+        restart_timer->timer = nullptr;
+        rlog_i(logTAG, "Device restart timer for reason # %d is deleted", restart_timer->reason);
+      } else {
+        rlog_e(logTAG, "Failed to delete device restart timer: %d %s", err, esp_err_to_name(err));
+      };
+    };
+  };
+}
+
+// -----------------------------------------------------------------------------------------------------------------------
+// ----------------------------------- Restarting the device with extended functionality ---------------------------------
+// -----------------------------------------------------------------------------------------------------------------------
 
 shutdown_handler_t _shutdown_handler_app = nullptr;
 
@@ -161,65 +288,70 @@ bool espRegisterSystemShutdownHandler()
   return espRegisterShutdownHandler(espSystemShutdownHandler);
 }
 
-static void espRestartTimer(void* arg)
-{
-  esp_restart();
-}
+#define ESP_NVS_NAMESPACE_SYSTEM "system"
+#define ESP_NVS_KEY_RESET_REASON "reset_reason"
 
-void espRestart(re_reset_reason_t reason, uint32_t delay_ms)
-{
-  rlog_w(logTAG, "******************* Restart system! *******************");
-  espSetResetReason(reason);
-  if (delay_ms > 0) {
-    esp_timer_create_args_t tmrCfg;
-    tmrCfg.callback = espRestartTimer;
-    tmrCfg.name = "timer_restart";
-    esp_timer_handle_t tmrHandle;
-    if ((esp_timer_create(&tmrCfg, &tmrHandle) == ESP_OK) 
-     && (esp_timer_start_once(tmrHandle, delay_ms * 1000) == ESP_OK)) {
-      return;
-    };
-  };
-  esp_restart();
-}
+static re_reset_reason_t _reset_reason_ext = RR_UNKNOWN;
+static bool _reset_reason_fact = false;
 
 void espSetResetReason(re_reset_reason_t reason)
 {
-  _reset_reason = reason;
+  _reset_reason_ext = reason;
+  _reset_reason_fact = true;
+  nvsWrite(ESP_NVS_NAMESPACE_SYSTEM, ESP_NVS_KEY_RESET_REASON, OPT_TYPE_U8, &_reset_reason_ext);
 }
 
 re_reset_reason_t espGetResetReason()
 {
-  re_reset_reason_t ret = _reset_reason;
-  _reset_reason = RR_UNKNOWN;
-  return ret;
+  if (!_reset_reason_fact) {
+    _reset_reason_fact = nvsRead(ESP_NVS_NAMESPACE_SYSTEM, ESP_NVS_KEY_RESET_REASON, OPT_TYPE_U8, &_reset_reason_ext);
+    if (_reset_reason_fact && (_reset_reason_ext != RR_UNKNOWN)) {
+      re_reset_reason_t reset_value = RR_UNKNOWN;
+      nvsWrite(ESP_NVS_NAMESPACE_SYSTEM, ESP_NVS_KEY_RESET_REASON, OPT_TYPE_U8, &reset_value);
+    };
+  };
+  return _reset_reason_ext;
 }
 
 const char* getResetReason()
 {
   esp_reset_reason_t esp_reason = esp_reset_reason();
-  re_reset_reason_t re_reason = espGetResetReason();
+  espGetResetReason();
   switch (esp_reason) {
     case ESP_RST_UNKNOWN:   return "UNKNOWN";
-    case ESP_RST_POWERON:   return "POWER ON";
+    case ESP_RST_POWERON:   
+      switch (_reset_reason_ext) {
+        case RR_BAT_LOW:    return "BATTERY LOW";
+        default:            return "POWER ON";
+      };
     case ESP_RST_EXT:       return "EXTERNAL PIN";
     case ESP_RST_SW:        
-      switch (re_reason) {
-        case RR_OTA:        return "OTA UPDATE";
+      switch (_reset_reason_ext) {
+        case RR_OTA:        return "OTA UPDATE OK";
         case RR_OTA_TIMEOUT: return "OTA UPDATE TIMEOUT";
+        case RR_OTA_FAILED: return "OTA FAILED (ROLLBACK)";
         case RR_COMMAND_RESET: return "COMMAND RESET";
         case RR_HEAP_ALLOCATION_FAILED: return "HEAP ALLOCATION FAILED";
         case RR_WIFI_TIMEOUT: return "WIFI CONNECT TIMEOUT";
         default:            return "SOFTWARE RESET";
       };
     case ESP_RST_PANIC:     
-      switch (re_reason) {
+      switch (_reset_reason_ext) {
         case RR_HEAP_ALLOCATION_FAILED: return "HEAP ALLOCATION FAILED";
         default:            return "EXCEPTION / PANIC";
       };
     case ESP_RST_INT_WDT:   return "INTERRUPT WATCHDOG";
     case ESP_RST_TASK_WDT:  return "TASK WATCHDOG";
-    case ESP_RST_WDT:       return "WATCHDOGS";
+    case ESP_RST_WDT:
+      switch (_reset_reason_ext) {
+        case RR_OTA:        return "OTA UPDATE OK (WD)";
+        case RR_OTA_TIMEOUT: return "OTA UPDATE TIMEOUT (WD)";
+        case RR_OTA_FAILED: return "OTA FAILED (ROLLBACK) (WD)";
+        case RR_COMMAND_RESET: return "COMMAND RESET (WD)";
+        case RR_HEAP_ALLOCATION_FAILED: return "HEAP ALLOCATION FAILED (WD)";
+        case RR_WIFI_TIMEOUT: return "WIFI CONNECT TIMEOUT (WD)";
+        default:            return "WATCHDOGS";
+      };
     case ESP_RST_DEEPSLEEP: return "EXITING DEEP SLLEP MODE";
     case ESP_RST_BROWNOUT:  return "BROWNOUT";
     case ESP_RST_SDIO:      return "SDIO";
@@ -250,13 +382,36 @@ const char* getResetReasonRtc(int cpu_no)
   };
 } 
 
+void espRestart(re_reset_reason_t reason)
+{
+  rlog_w(logTAG, "******************* Restart system! *******************");
+  espSetResetReason(reason);
+  esp_restart();
+}
+
 // -----------------------------------------------------------------------------------------------------------------------
 // -------------------------------------------------------- Debug --------------------------------------------------------
 // -----------------------------------------------------------------------------------------------------------------------
 
+void disbleEspIdfLogs()
+{
+  esp_log_level_set("wifi", ESP_LOG_NONE);
+  esp_log_level_set("event", ESP_LOG_ERROR);
+  esp_log_level_set("tcpip", ESP_LOG_ERROR);
+  esp_log_level_set("tcpip_adapter", ESP_LOG_ERROR);
+  esp_log_level_set("phy", ESP_LOG_ERROR);
+  esp_log_level_set("phy_version", ESP_LOG_ERROR);
+  esp_log_level_set("phy: phy_version", ESP_LOG_ERROR);
+  esp_log_level_set("i2c", ESP_LOG_ERROR);
+  esp_log_level_set("esp_https_ota", ESP_LOG_INFO);
+  esp_log_level_set("HTTP_CLIENT", ESP_LOG_NONE);
+  esp_log_level_set("MQTT_CLIENT", ESP_LOG_NONE);
+  esp_log_level_set("TRANS_TCP", ESP_LOG_NONE);
+}
+
 #if CONFIG_RESTART_DEBUG_INFO
 
-__NOINIT_ATTR static re_restart_debug_t _debug_info;
+static __NOINIT_ATTR re_restart_debug_t _debug_info;
 
 void IRAM_ATTR debugHeapUpdate()
 {

@@ -1,7 +1,7 @@
 {
   "name": "reEsp32",
-  "version": "1.0.0",
-  "description": "ESP32 system functions and utilites.",
+  "version": "5.1.0",
+  "description": "ESP32 system functions and utilites",
   "keywords": "esp32",
   "authors":
   [
