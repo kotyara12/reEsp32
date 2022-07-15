@@ -43,6 +43,14 @@
   }; \
 } while (0);
 
+#define RE_ERROR_CHECK(a) do { \
+  esp_err_t __err = (a); \
+  if (__err != ESP_OK) { \
+    rlog_e(logTAG, "\"%s\"::%d failed with code %d (%s)", __FUNCTION__, __LINE__, __err, esp_err_to_name(__err)); \
+    return __err; \
+  }; \
+} while (0);
+
 typedef struct {
   uint32_t deadline;
 } esp_timer_t;
