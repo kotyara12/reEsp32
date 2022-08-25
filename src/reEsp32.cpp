@@ -395,7 +395,7 @@ void espRestart(re_reset_reason_t reason)
 
 void disbleEspIdfLogs()
 {
-  esp_log_level_set("wifi", ESP_LOG_NONE);
+  esp_log_level_set("wifi", ESP_LOG_ERROR);
   esp_log_level_set("event", ESP_LOG_ERROR);
   esp_log_level_set("tcpip", ESP_LOG_ERROR);
   esp_log_level_set("tcpip_adapter", ESP_LOG_ERROR);
