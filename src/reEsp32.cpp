@@ -160,7 +160,7 @@ static void espRestartTimerEnd(void* arg)
   };
 }
 
-bool espRestartTimerInit(re_restart_timer_t* restart_timer, re_reset_reason_t reason)
+bool espRestartTimerInit(re_restart_timer_t* restart_timer, re_reset_reason_t reason, const char* tmr_name)
 {
   if (restart_timer == nullptr) {
     rlog_e(logTAG, "Failed to initialize device restart timer: argument is NULL");
@@ -171,7 +171,11 @@ bool espRestartTimerInit(re_restart_timer_t* restart_timer, re_reset_reason_t re
     esp_timer_create_args_t tmrCfg;
     memset(&tmrCfg, 0, sizeof(tmrCfg));
     tmrCfg.callback = espRestartTimerEnd;
-    tmrCfg.name = "wdog_restart";
+    if (tmr_name) {
+      tmrCfg.name = tmr_name;
+    } else {
+      tmrCfg.name = "wdt_restart";
+    };
     tmrCfg.arg = restart_timer;
     esp_err_t err = esp_timer_create(&tmrCfg, &restart_timer->timer);
     if (err != ESP_OK) {
@@ -200,7 +204,7 @@ void espRestartTimerStart(re_restart_timer_t* restart_timer, re_reset_reason_t r
       };
     };
       
-    if ((restart_timer->timer != nullptr) || espRestartTimerInit(restart_timer, reason)) {
+    if ((restart_timer->timer != nullptr) || espRestartTimerInit(restart_timer, reason, nullptr)) {
       esp_err_t err = esp_timer_start_once(restart_timer->timer, delay_ms * 1000);
       if (err == ESP_OK) {
         rlog_w(logTAG, "Device restart timer started for %d s due to reason # %d", (uint32_t)(delay_ms / 1000), reason);
@@ -327,12 +331,14 @@ const char* getResetReason()
     case ESP_RST_EXT:       return "EXTERNAL PIN";
     case ESP_RST_SW:        
       switch (_reset_reason_ext) {
+        case RR_ERROR:        return "FIRMWARE ERROR";
         case RR_OTA:        return "OTA UPDATE OK";
         case RR_OTA_TIMEOUT: return "OTA UPDATE TIMEOUT";
         case RR_OTA_FAILED: return "OTA FAILED (ROLLBACK)";
         case RR_COMMAND_RESET: return "COMMAND RESET";
         case RR_HEAP_ALLOCATION_FAILED: return "HEAP ALLOCATION FAILED";
         case RR_WIFI_TIMEOUT: return "WIFI CONNECT TIMEOUT";
+        case RR_MQTT_TIMEOUT: return "MQTT CONNECT TIMEOUT";
         default:            return "SOFTWARE RESET";
       };
     case ESP_RST_PANIC:     
@@ -344,12 +350,14 @@ const char* getResetReason()
     case ESP_RST_TASK_WDT:  return "TASK WATCHDOG";
     case ESP_RST_WDT:
       switch (_reset_reason_ext) {
+        case RR_ERROR:        return "FIRMWARE ERROR (WD)";
         case RR_OTA:        return "OTA UPDATE OK (WD)";
         case RR_OTA_TIMEOUT: return "OTA UPDATE TIMEOUT (WD)";
         case RR_OTA_FAILED: return "OTA FAILED (ROLLBACK) (WD)";
         case RR_COMMAND_RESET: return "COMMAND RESET (WD)";
         case RR_HEAP_ALLOCATION_FAILED: return "HEAP ALLOCATION FAILED (WD)";
         case RR_WIFI_TIMEOUT: return "WIFI CONNECT TIMEOUT (WD)";
+        case RR_MQTT_TIMEOUT: return "MQTT CONNECT TIMEOUT (WD)";
         default:            return "WATCHDOGS";
       };
     case ESP_RST_DEEPSLEEP: return "EXITING DEEP SLLEP MODE";

@@ -69,13 +69,15 @@ extern "C" {
 
 typedef enum {
   RR_UNKNOWN = 0,
-  RR_OTA = 1,
-  RR_OTA_TIMEOUT = 2,
-  RR_OTA_FAILED = 3,
-  RR_COMMAND_RESET = 4,
-  RR_HEAP_ALLOCATION_FAILED = 5,
-  RR_WIFI_TIMEOUT = 6,
-  RR_BAT_LOW = 7
+  RR_ERROR = 1,
+  RR_OTA = 2,
+  RR_OTA_TIMEOUT = 3,
+  RR_OTA_FAILED = 4,
+  RR_COMMAND_RESET = 5,
+  RR_HEAP_ALLOCATION_FAILED = 6,
+  RR_WIFI_TIMEOUT = 7,
+  RR_MQTT_TIMEOUT = 8,
+  RR_BAT_LOW = 9
 } re_reset_reason_t;
 
 typedef struct {
@@ -121,7 +123,7 @@ const char* getResetReason();
 const char* getResetReasonRtc(int cpu_no);
 void espRestart(re_reset_reason_t reason);
 
-bool espRestartTimerInit(re_restart_timer_t* restart_timer, re_reset_reason_t reason);
+bool espRestartTimerInit(re_restart_timer_t* restart_timer, re_reset_reason_t reason, const char* tmr_name);
 void espRestartTimerStart(re_restart_timer_t* restart_timer, re_reset_reason_t reason, uint64_t delay_ms, bool override);
 void espRestartTimerBreak(re_restart_timer_t* restart_timer);
 void espRestartTimerFree(re_restart_timer_t* restart_timer);
