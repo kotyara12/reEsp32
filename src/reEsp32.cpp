@@ -15,10 +15,10 @@
 #include "esp_types.h"
 #include "esp_attr.h"
 #include "esp_err.h"
+#include "esp_cpu_utils.h"
 #include "esp_debug_helpers.h"
 #include "soc/soc_memory_layout.h"
-#include "soc/cpu.h" 
-#endif // CONFIG_RESTART_STACK_DEPTH
+#endif // CONFIG_RESTART_DEBUG_STACK_DEPTH
 
 /**
  * Timers
@@ -30,7 +30,7 @@
 
 static const char* logTAG = "SYSTEM";
 
-unsigned long IRAM_ATTR millis() 
+unsigned long millis() 
 {
   return (unsigned long) (esp_timer_get_time() / 1000ULL);
 };

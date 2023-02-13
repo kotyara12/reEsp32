@@ -108,9 +108,7 @@ typedef struct {
 
 #endif // CONFIG_RESTART_DEBUG_INFO
 
-#ifndef ARDUINO
 unsigned long IRAM_ATTR millis();
-#endif
 int usSleep(uint64_t us);
 void timerSet(esp_timer_t *timer, uint32_t timeout);
 bool timerTimeout(esp_timer_t *timer);
