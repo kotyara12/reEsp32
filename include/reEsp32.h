@@ -25,6 +25,12 @@
   action; \
 };
 
+#define RE_LINK_CHECK_EVENT(a, obj_name, action) if ((a) == nullptr) { \
+  eventLoopPostError(RE_SYS_ERROR, ESP_ERR_INVALID_ARG); \
+  rlog_e(logTAG, "[%s] is NULL in \"%s\"::%d", obj_name, __FUNCTION__, __LINE__); \
+  action; \
+};
+
 // Usage: RE_OK_CHECK(esp_create_timer(...), return false);
 #define RE_OK_CHECK(a, action) do { \
   esp_err_t __err = (a); \
