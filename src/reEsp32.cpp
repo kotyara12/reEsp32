@@ -270,7 +270,7 @@ void espRestartTimerFree(re_restart_timer_t* restart_timer)
 
 shutdown_handler_t _shutdown_handler_app = nullptr;
 
-static void espSystemShutdownHandler()
+static void IRAM_ATTR espSystemShutdownHandler()
 {
   #if CONFIG_RESTART_DEBUG_INFO
   debugUpdate();
@@ -292,35 +292,21 @@ bool espRegisterSystemShutdownHandler()
   return espRegisterShutdownHandler(espSystemShutdownHandler);
 }
 
-#define ESP_NVS_NAMESPACE_SYSTEM "system"
-#define ESP_NVS_KEY_RESET_REASON "reset_reason"
+static __NOINIT_ATTR re_reset_reason_t _reset_reason_ext = RR_UNKNOWN;
 
-static re_reset_reason_t _reset_reason_ext = RR_UNKNOWN;
-static bool _reset_reason_fact = false;
-
-void espSetResetReason(re_reset_reason_t reason)
+void IRAM_ATTR espSetResetReason(re_reset_reason_t reason)
 {
   _reset_reason_ext = reason;
-  _reset_reason_fact = true;
-  nvsWrite(ESP_NVS_NAMESPACE_SYSTEM, ESP_NVS_KEY_RESET_REASON, OPT_TYPE_U8, &_reset_reason_ext);
 }
 
 re_reset_reason_t espGetResetReason()
 {
-  if (!_reset_reason_fact) {
-    _reset_reason_fact = nvsRead(ESP_NVS_NAMESPACE_SYSTEM, ESP_NVS_KEY_RESET_REASON, OPT_TYPE_U8, &_reset_reason_ext);
-    if (_reset_reason_fact && (_reset_reason_ext != RR_UNKNOWN)) {
-      re_reset_reason_t reset_value = RR_UNKNOWN;
-      nvsWrite(ESP_NVS_NAMESPACE_SYSTEM, ESP_NVS_KEY_RESET_REASON, OPT_TYPE_U8, &reset_value);
-    };
-  };
   return _reset_reason_ext;
 }
 
 const char* getResetReason()
 {
   esp_reset_reason_t esp_reason = esp_reset_reason();
-  espGetResetReason();
   switch (esp_reason) {
     case ESP_RST_UNKNOWN:   return "UNKNOWN";
     case ESP_RST_POWERON:   
@@ -365,6 +351,7 @@ const char* getResetReason()
     case ESP_RST_SDIO:      return "SDIO";
     default :               return "NO MEAN";
   };
+  _reset_reason_ext = RR_UNKNOWN;
 } 
 
 const char* getResetReasonRtc(int cpu_no)
@@ -490,6 +477,8 @@ re_restart_debug_t debugGet()
 // This function will be considered the esp_panic_handler to call in case a panic occurs
 void __wrap_esp_panic_handler(void* info) 
 {
+  _reset_reason_ext = RR_UNKNOWN;
+
   #if CONFIG_RESTART_DEBUG_INFO && (CONFIG_RESTART_DEBUG_STACK_DEPTH > 0)
     debugBacktraceUpdate();
   #endif // CONFIG_RESTART_DEBUG_STACK_DEPTH
