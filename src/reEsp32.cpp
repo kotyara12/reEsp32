@@ -15,9 +15,13 @@
 #include "esp_types.h"
 #include "esp_attr.h"
 #include "esp_err.h"
-#include "esp_cpu_utils.h"
 #include "esp_debug_helpers.h"
 #include "soc/soc_memory_layout.h"
+#if ESP_IDF_VERSION_MAJOR < 5
+  #include "soc/cpu.h"
+#else
+  #include "esp_cpu_utils.h"
+#endif // ESP_IDF_VERSION_MAJOR
 #endif // CONFIG_RESTART_DEBUG_STACK_DEPTH
 
 /**
