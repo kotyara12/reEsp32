@@ -32,7 +32,9 @@
 #include "esp_attr.h"
 #include "esp_timer.h"
 
+#if CONFIG_RLOG_PROJECT_LEVEL > RLOG_LEVEL_NONE
 static const char* logTAG = "SYSTEM";
+#endif // CONFIG_RLOG_PROJECT_LEVEL
 
 unsigned long millis() 
 {
