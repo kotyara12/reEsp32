@@ -13,6 +13,8 @@
 #include "freertos/FreeRTOS.h"
 #include "rLog.h"
 
+#define TMPL_ERROR_TG "🛑 <b>%s</b> failed with code <b>%d</b> (%s)\n\n<code>File: %s\nLine: %s</code>"
+
 // Usage: RE_MEM_CHECK(TAG, item, return NULL);
 #define RE_MEM_CHECK(a, action) if ((a) == nullptr) { \
   rlog_e(logTAG, "%s in \"%s\"::%d", "Memory exhausted", __FUNCTION__, __LINE__); \
@@ -63,6 +65,21 @@
     eventLoopPostError(RE_SYS_ERROR, __err); \
     rlog_e(logTAG, "\"%s\"::%d failed with code %d (%s)", __FUNCTION__, __LINE__, __err, esp_err_to_name(__err)); \
     return __err; \
+  }; \
+} while (0);
+
+#define RE_ERROR_LOG(a) do { \
+  esp_err_t __err = (a); \
+  if (__err != ESP_OK) { \
+    rlog_e(logTAG, "\"%s\"::%d failed with code %d (%s)", __FUNCTION__, __LINE__, __err, esp_err_to_name(__err)); \
+  }; \
+} while (0);
+
+#define RE_ERROR_LOG_EVENT(a) do { \
+  esp_err_t __err = (a); \
+  if (__err != ESP_OK) { \
+    eventLoopPostError(RE_SYS_ERROR, __err); \
+    rlog_e(logTAG, "\"%s\"::%d failed with code %d (%s)", __FUNCTION__, __LINE__, __err, esp_err_to_name(__err)); \
   }; \
 } while (0);
 
