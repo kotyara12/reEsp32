@@ -9,6 +9,7 @@
 #ifndef __RE_ESP32_H__
 #define __RE_ESP32_H__
 
+#include <time.h>
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "rLog.h"
