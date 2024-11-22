@@ -151,6 +151,24 @@ void* esp_calloc(size_t count, size_t size)
 
 #endif // CONFIG_HEAP_ALLOC_FAILED_RETRY
 
+void* psram_malloc(size_t size)
+{
+  #if CONFIG_SPIRAM
+    void* addr = heap_caps_malloc(size, MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
+    if (addr != nullptr) return addr;
+  #endif
+  return malloc(size);
+}
+
+void* psram_calloc(size_t count, size_t size)
+{
+  #if CONFIG_SPIRAM
+    void* addr = heap_caps_calloc(count, size, MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
+    if (addr != nullptr) return addr;
+  #endif
+  return calloc(count, size);
+}
+
 // -----------------------------------------------------------------------------------------------------------------------
 // ------------------------------------ Device restart timer when something went wrong -----------------------------------
 // -----------------------------------------------------------------------------------------------------------------------

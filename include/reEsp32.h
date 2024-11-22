@@ -142,6 +142,8 @@ void msTaskDelayUntil(TickType_t * const prevTime, TickType_t value);
 
 void* esp_malloc(size_t size);
 void* esp_calloc(size_t count, size_t size);
+void* psram_malloc(size_t size);
+void* psram_calloc(size_t count, size_t size);
 float esp_heap_free_percent();
 float esp_heap_free_check();
 
